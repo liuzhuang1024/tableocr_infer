@@ -27,7 +27,21 @@ class Ev:
         return dict(char_acc=char_acc, seq_acc=seq_acc, max_seq=self.max_seq, max_right_seq=self.max_right_seq, max_distance=self.max_distance, max_length=self.max_length)
 
 
+
+def fliter_b_i_strike(label):
+    value = re.sub("<b>", "粗", label)
+    value = re.sub("</b>", "细", value)
+    value = re.sub("<i>", "斜", value)
+    value = re.sub("</i>", "直", value)
+    value = re.sub("<sub>", "上", value)
+    value = re.sub("</sub>", "下", value)
+    value = re.sub("<sup>", "左", value)
+    label = re.sub("</sup>", "右", value)
+    return label
+
+
 if __name__ == "__main__":
+    import re
     reader = list(jsonlines.open("result_val.jsonl", "r").iter())
     new_reader = {}
     for d in reader:
@@ -45,6 +59,10 @@ if __name__ == "__main__":
     ev = Ev()
     for key, tokens in new_reader.items():
         gt_tokens = gt_dict.get(key, False)
+        tokens, gt_tokens = fliter_b_i_strike(tokens),fliter_b_i_strike(gt_tokens)
+
+        # if len(gt_tokens) >= 50:
+        #     continue
         if gt_tokens:
             ev.count(tokens, gt_tokens)
 

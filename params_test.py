@@ -13,6 +13,8 @@ dict_path = "./index_dict.txt"
 #alphabet = dict_path
 test_img = "/data/xiaoya/crnn_chinese/data/select_paisou/img/"
 crnn = 'model/crnn_Rec_done_10_899.pt'
+crnn = '/data/lz/GitHub/table_ocr/crnn_resnet/crnn_1228_all.pt'
+
 beta1 =0.5
 lr = 0.00019
 niter = 300

@@ -1,12 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 import math
-from os import sync, write
-import pdb
-import copy
 from torch.utils.data import DataLoader
-from collections import defaultdict, Counter
-import argparse
 import random
 import torch
 import torch.backends.cudnn as cudnn
@@ -24,7 +19,7 @@ import time
 import json
 import jsonlines
 from PIL import ImageFont, ImageDraw, Image
-# os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 
 def trans(input, markinlued=True):
@@ -158,8 +153,6 @@ def model_infer(crnn, converter, cvImg):
     return reg
 
 
-async def async_model_infer(*args, **kwargs):
-    return model_infer(*args, **kwargs)
 
 
 def model_init(model_path):
@@ -174,16 +167,16 @@ def model_init(model_path):
 
 
 class Infer:
-    def __init__(self) -> None:
+    def __init__(self, model_pt_path, model_dict_txt) -> None:
         start = time.time()
         manualSeed = 10
         random.seed(manualSeed)
         np.random.seed(manualSeed)
         torch.manual_seed(manualSeed)
         cudnn.benchmark = True
-        self.converter = utils_1.strLabelConverter(params_test.dict_path)
+        self.converter = utils_1.strLabelConverter(model_dict_txt)
         ##########初始化################
-        self.model_crnn = model_init(params_test.crnn)
+        self.model_crnn = model_init(model_pt_path)
         ##########初始化################
         print("Init:", time.time()-start)
 
@@ -192,15 +185,14 @@ class Infer:
         img = self.resize_img(img)
         shape = img.shape[:2]
         reg_result = model_infer(self.model_crnn, self.converter, img)
-        decode_result = self.index_decode(reg_result)
+        decode_result = index_decode_v2(reg_result)
         # print(shape, decode_result)
+        # pre = re.sub("♡", "", reg_result)
+        # pre = re.sub("卐", "", pre)
+        # # pre = "adasd_{1234}asdas"
+        # pre = re.sub("(_{)(.*?)(})", r"\2", pre)
+        # decode_result = re.sub("(\^{)(.*?)(})", r"\2", pre)
         return dict(reg_result=reg_result, name=os.path.basename(im_path), im_path=im_path, shape=shape, decode_result=decode_result)
-    def test_v2(self, ):
-
-        data = ['WX20201230-193120@2x.png', 'WX20201230-193442@2x.png', 'WX20201230-193639@2x.png', 'WX20201230-193835@2x.png']
-        # 单进程
-        with Pool(processes = 2) as p:   # Parallelizing over 2 GPUs
-            results = p.map(self.test, data)
 
     def resize_img(self, cvImg):
         h, w = cvImg.shape
@@ -253,7 +245,6 @@ class Infer:
                         tmp_res += tmp_
                 else:
                     tmp_res.append(tmp)
-            # print(tmp_res)
             return tmp_res
 
         res = trans(res, '_&', '<i>', '</i>')
@@ -264,12 +255,12 @@ class Infer:
 
 
 def test(data):
+    import tqdm
     print(len(data))
-    for line in data:
-        infer.test(line.strip('\n'))
-        with jsonlines.open("result_val.jsonl", "a") as f:
-            f.write(infer.test(line.strip("\n")))
-            # print(json.dumps(infer.test(line.strip("\n"))))
+    td = tqdm.tqdm(data)
+    f =  jsonlines.open("result_val_1228.jsonl", "a")
+    for line in td:
+        f.write(infer.test(line.strip("\n")))
 
 def index_decode_v2(index_encode):
     # 解码部分
@@ -278,7 +269,6 @@ def index_decode_v2(index_encode):
     res = re.split("(.{0,1}[卐♡♀]{0,3})", res)
     res = list(filter(lambda x: x, res))
 
-    print(res)
 
     def trans(data, split='卐', start='<b>', end='</b>'):
         res = data
@@ -314,23 +304,22 @@ def index_decode_v2(index_encode):
     res = trans(res, '卐', '<b>', '</b>')
     res = trans(res, '♀', '<strike>', '</stirke>')
     return ''.join(res)
-
-
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+# infer = Infer(model_dict_txt="index_dict_1207.txt", model_pt_path="model/crnn_1207_decode_卐.pt")
+infer = Infer(model_dict_txt="index_dict_1207.txt", model_pt_path="/data/lz/GitHub/table_ocr/crnn_resnet/crnn_1228_all.pt")
 
 if __name__ == '__main__':
     import time
-    import torch.multiprocessing as mp
-    from torch.multiprocessing import Pool
-    mp.set_start_method('spawn', force=True)
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    infer = Infer()
-    infer.test_v2()
-    # with open("text.list", "r") as f:
-    #     data = f.readlines()
+    import pprint
 
+    with open("text.list", "r") as f:
+        data = f.readlines()
 
+    # data = ['WX20201230-193120@2x.png', 'WX20201230-193442@2x.png', 'WX20201230-193639@2x.png', 'WX20201230-193835@2x.png']
     # data = [i.strip('\n') for i in data]
     # start = time.time()
-    # print([infer.test(i) for i in data])
-    # print("Time:", time.time()-start)
+    # pp = pprint.PrettyPrinter()
+    # pp.pprint([infer.test(i) for i in data])
 
+    # 单进程
+    test(data)
